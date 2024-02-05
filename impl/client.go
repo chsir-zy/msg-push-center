@@ -147,7 +147,6 @@ func Send(c *gin.Context, hub *Hub) {
 
 	sendMsg := c.PostForm("msg")
 
-	fmt.Println(sendMsg)
 	msgLog := message.Msg{
 		Uid: uid,
 		Msg: sendMsg,

@@ -26,7 +26,7 @@ func init() {
 type messageLog struct {
 	gorm.Model
 	Uid     uint32 `gorm:"uid"`
-	message string `gorm:"message"`
+	Message string `gorm:"message"`
 }
 
 // 保住 MysqlMsgLog 实现了MsgLogger接口
@@ -40,7 +40,7 @@ func (mysql *MysqlMsgLog) Log(msg Msg) error {
 	uid, _ := strconv.Atoi(msg.Uid)
 	err := db.Create(&messageLog{
 		Uid:     uint32(uid),
-		message: msg.Msg,
+		Message: msg.Msg,
 	}).Error
 	if err != nil {
 		return err
