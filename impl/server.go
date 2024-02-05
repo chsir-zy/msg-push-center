@@ -9,6 +9,10 @@ import (
 func NewServer() {
 	hub := NewHub()
 	engine := initRouter(hub)
+
+	// 启动自动注册和注销的协程
+	go hub.run()
+
 	err := engine.Run() // 默认运行在本机的8080端口
 	if err != nil {
 		fmt.Println(err)

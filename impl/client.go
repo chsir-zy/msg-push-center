@@ -105,6 +105,9 @@ func ServeWs(c *gin.Context, hub *Hub) {
 		return
 	}
 
+	// 告诉客户端连接成功
+	conn.WriteMessage(websocket.TextMessage, []byte("connection success"))
+
 	// 创建一个和浏览器连接的客户端
 	client := &Client{conn: conn, hub: hub, send: make(chan message.Msg, CLIENT_BUFFER_SIZE), uid: uid}
 
@@ -114,9 +117,6 @@ func ServeWs(c *gin.Context, hub *Hub) {
 	// 启动两个协程 分别进行读和写
 	go client.readPump()
 	go client.writerPump()
-
-	// 告诉客户端连接成功
-	conn.WriteMessage(websocket.TextMessage, []byte("connection success"))
 }
 
 /*
@@ -146,6 +146,8 @@ func Send(c *gin.Context, hub *Hub) {
 	}
 
 	sendMsg := c.PostForm("msg")
+
+	fmt.Println(sendMsg)
 	msgLog := message.Msg{
 		Uid: uid,
 		Msg: sendMsg,
