@@ -96,7 +96,6 @@ func ServeWs(c *gin.Context, hub *Hub) {
 
 	// TODO  这里我们实现一个JWT认证
 	uid, err := hub.Authenticator.Authenticate(c)
-	fmt.Println("uid---------", uid)
 
 	if err != nil {
 		c.Writer.WriteHeader(http.StatusBadRequest)

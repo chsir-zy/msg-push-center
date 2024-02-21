@@ -1,12 +1,16 @@
 package impl
 
 import (
+	"chsir-zy/msg-push-center/config"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 )
 
 func NewServer() {
+	config.LoadConfig()
+	config.GORM_DB = config.GormMysql()
+
 	hub := NewHub()
 	engine := initRouter(hub)
 
