@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chsir-zy/msg-push-center/config"
+	"chsir-zy/msg-push-center/impl/util"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,7 @@ import (
 func NewServer() {
 	config.LoadConfig()
 	config.GORM_DB = config.GormMysql()
+	config.JWT_KEY = config.CONFIG.Jwt.Key
 
 	hub := NewHub()
 	engine := initRouter(hub)
@@ -35,6 +37,11 @@ func initRouter(hub *Hub) *gin.Engine {
 			Send(ctx, hub)
 		})
 	}
+
+	router.GET("/token", func(ctx *gin.Context) {
+		token := util.GenToken()
+		ctx.JSON(200, token)
+	})
 
 	return router
 }

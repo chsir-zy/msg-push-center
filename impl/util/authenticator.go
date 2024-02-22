@@ -1,6 +1,7 @@
 package util
 
 import (
+	"chsir-zy/msg-push-center/config"
 	"errors"
 	"fmt"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-const SECRET = "123456" //认证的密码 TODO
+// const SECRET = "123456" //认证的密码 TODO
 
 type JWTAuthenticator struct{}
 
@@ -31,7 +32,7 @@ func (jwtauth *JWTAuthenticator) Authenticate(c *gin.Context) (string, error) {
 			return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["alg"])
 		}
 
-		return []byte(SECRET), nil
+		return []byte(config.JWT_KEY), nil
 	})
 
 	if err != nil {
@@ -39,8 +40,24 @@ func (jwtauth *JWTAuthenticator) Authenticate(c *gin.Context) (string, error) {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		fmt.Println("claims", claims)
 		return claims["uid"].(string), nil
 	} else {
 		return "", err
 	}
+}
+
+// 生成token
+func GenToken() string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid": "1",
+	})
+	fmt.Println("jwt key :", config.JWT_KEY)
+	tokenStr, err := token.SignedString([]byte(config.JWT_KEY))
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return tokenStr
 }

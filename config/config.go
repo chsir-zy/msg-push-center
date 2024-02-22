@@ -9,6 +9,7 @@ import (
 
 type config struct {
 	Mysql Mysql
+	Jwt   Jwt
 }
 
 var CONFIG config
