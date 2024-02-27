@@ -36,11 +36,13 @@ func (c *Client) readPump() {
 	}()
 
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, p, err := c.conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			log.Println("read", err)
 			return
 		}
+
+		fmt.Println(string(p))
 	}
 
 }
@@ -64,7 +66,7 @@ func (c *Client) writerPump() {
 
 		err := c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Msg))
 		if err != nil {
-			log.Println(err)
+			log.Println("writer", err)
 			return
 		}
 
@@ -85,21 +87,32 @@ var upgrater = websocket.Upgrader{
 
 // websocket 连接
 func ServeWs(c *gin.Context, hub *Hub) {
+	uid, err := hub.Authenticator.Authenticate(c)
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"msg": fmt.Sprintf("authenticate error: %s", err),
+		})
+		return
+	}
+
+	// 判断uid是否已经存在
+	/* hub.sm.RLock()
+	_, ok := hub.userClients[uid]
+	hub.sm.RUnlock()
+	fmt.Println("ok:", ok)
+	if ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"msg": "client is exist",
+		})
+		return
+	} */
+
 	conn, err := upgrater.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		// 返回错误消息给客户端
 		c.Writer.WriteHeader(http.StatusBadRequest)
 		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("websocket connection error: %s", err)))
-		conn.Close()
-		return
-	}
-
-	// TODO  这里我们实现一个JWT认证
-	uid, err := hub.Authenticator.Authenticate(c)
-
-	if err != nil {
-		c.Writer.WriteHeader(http.StatusBadRequest)
-		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("authenticate error: %s", err)))
 		conn.Close()
 		return
 	}
@@ -113,6 +126,8 @@ func ServeWs(c *gin.Context, hub *Hub) {
 	// 向hub注册一个客户端
 	client.hub.register <- client
 
+	fmt.Println(hub)
+
 	// 启动两个协程 分别进行读和写
 	go client.readPump()
 	go client.writerPump()
@@ -124,7 +139,15 @@ func ServeWs(c *gin.Context, hub *Hub) {
  */
 func Send(c *gin.Context, hub *Hub) {
 	// 业务中心需要传uid  hub才能知道往哪个client推送消息
-	uid := c.PostForm("uid")
+	// uid := c.PostForm("uid")
+	uid, err := hub.Authenticator.Authenticate(c)
+
+	if err != nil {
+		c.Writer.WriteHeader(http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, fmt.Sprintf("authenticate error: %s", err))
+		return
+	}
+
 	if uid == "" {
 		// c.Writer.WriteHeader(http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, gin.H{
