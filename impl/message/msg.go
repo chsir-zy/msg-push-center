@@ -2,8 +2,8 @@ package message
 
 // 消息推送的内容模板
 type Msg struct {
-	Uid string
-	Msg string
+	Uid     string
+	Message string
 }
 
 // 定义一个消息记录的接口

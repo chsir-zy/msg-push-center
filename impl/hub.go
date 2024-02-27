@@ -37,7 +37,7 @@ func NewHub() *Hub {
 		unregister:    make(chan *Client),
 		userClients:   make(map[string]*Client),
 		sm:            &sync.RWMutex{},
-		logger:        &message.MysqlMsgLog{},
+		logger:        &message.FileMsgLog{},
 		Authenticator: &util.JWTAuthenticator{},
 	}
 }

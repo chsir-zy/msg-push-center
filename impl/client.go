@@ -64,7 +64,7 @@ func (c *Client) writerPump() {
 			return
 		}
 
-		err := c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Msg))
+		err := c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Message))
 		if err != nil {
 			log.Println("writer", err)
 			return
@@ -170,8 +170,8 @@ func Send(c *gin.Context, hub *Hub) {
 	sendMsg := c.PostForm("msg")
 
 	msgLog := message.Msg{
-		Uid: uid,
-		Msg: sendMsg,
+		Uid:     uid,
+		Message: sendMsg,
 	}
 
 	client.send <- msgLog

@@ -42,7 +42,7 @@ func (mysql *MysqlMsgLog) Log(msg Msg) error {
 	uid, _ := strconv.Atoi(msg.Uid)
 	err := config.GORM_DB.Create(&messageLog{
 		Uid:     uint32(uid),
-		Message: msg.Msg,
+		Message: msg.Message,
 	}).Error
 	if err != nil {
 		return err
