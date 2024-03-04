@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -19,37 +20,42 @@ const WRITER_TIMEOUT = 10     //websocket 写入的超时时间
  *
  */
 type Client struct {
-	hub  *Hub
-	conn *websocket.Conn
-	send chan message.Msg // 发送通道，往客户端消息的通道
+	hub      *Hub
+	conn     *websocket.Conn
+	send     chan message.Msg // 发送通道，往客户端消息的通道
+	isClosed bool             //客户端是否已经关闭了
 
-	uid string // 用户id
+	uid  string // 用户id
+	uuid string // 用来标记每个连接
 }
 
 // 从客户端读消息
 //
 // 我们这里只处理服务端往浏览器推送消息 暂时将浏览器发送过来的消息丢弃
-func (c *Client) readPump() {
+func (c *Client) readPump(hub *Hub) {
 	defer func() {
 		c.conn.Close()
 		close(c.send)
 	}()
 
 	for {
-		_, p, err := c.conn.ReadMessage()
-		if err != nil {
-			log.Println("read", err)
+		_, _, err := c.conn.ReadMessage()
+		if err != nil || websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err) {
+			c.isClosed = true
+			delete(hub.userClients[c.uid], c.uuid)
+			log.Println("read:::::", err)
 			return
 		}
 
-		fmt.Println(string(p))
+		// fmt.Println(string(p))
 	}
 
 }
 
 // 往浏览器发送消息
 func (c *Client) writerPump() {
-	defer func() { // 关闭底层连接
+	defer func() {
+		// 关闭底层连接
 		c.conn.Close()
 	}()
 
@@ -96,18 +102,6 @@ func ServeWs(c *gin.Context, hub *Hub) {
 		return
 	}
 
-	// 判断uid是否已经存在
-	/* hub.sm.RLock()
-	_, ok := hub.userClients[uid]
-	hub.sm.RUnlock()
-	fmt.Println("ok:", ok)
-	if ok {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"msg": "client is exist",
-		})
-		return
-	} */
-
 	conn, err := upgrater.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		// 返回错误消息给客户端
@@ -121,15 +115,14 @@ func ServeWs(c *gin.Context, hub *Hub) {
 	conn.WriteMessage(websocket.TextMessage, []byte("connection success"))
 
 	// 创建一个和浏览器连接的客户端
-	client := &Client{conn: conn, hub: hub, send: make(chan message.Msg, CLIENT_BUFFER_SIZE), uid: uid}
+	uuid := uuid.New()
+	client := &Client{conn: conn, hub: hub, send: make(chan message.Msg, CLIENT_BUFFER_SIZE), uid: uid, uuid: uuid.String()}
 
 	// 向hub注册一个客户端
 	client.hub.register <- client
 
-	fmt.Println(hub)
-
 	// 启动两个协程 分别进行读和写
-	go client.readPump()
+	go client.readPump(hub)
 	go client.writerPump()
 }
 
@@ -158,9 +151,10 @@ func Send(c *gin.Context, hub *Hub) {
 
 	// 获取 client
 	hub.sm.RLock()
-	client, ok := hub.userClients[uid]
+	clients, ok := hub.userClients[uid]
 	hub.sm.RUnlock()
-	if !ok {
+
+	if !ok || len(clients) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"msg": "client is not exist,please check uid",
 		})
@@ -174,5 +168,19 @@ func Send(c *gin.Context, hub *Hub) {
 		Message: sendMsg,
 	}
 
-	client.send <- msgLog
+	// client.send <- msgLog
+	go broadToClient(clients, msgLog)
+}
+
+/*
+ * 一个uid可能有多个连接，连接的所有client发送消息
+ */
+func broadToClient(clients map[string]*Client, msg message.Msg) {
+	for _, client := range clients {
+		if client.isClosed {
+			delete(clients, client.uuid)
+		} else {
+			client.send <- msg
+		}
+	}
 }

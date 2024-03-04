@@ -18,8 +18,8 @@ type Hub struct {
 	// 注销客户端
 	unregister chan *Client
 
-	// uid为map的key，记录每个uid对应的Client
-	userClients map[string]*Client
+	// uid为map的key，记录每个uid对应的Client	uid=>map[uuid]{*client}
+	userClients map[string]map[string]*Client
 
 	// 控制每个连接只有一个读写
 	sm *sync.RWMutex
@@ -35,7 +35,7 @@ func NewHub() *Hub {
 	return &Hub{
 		register:      make(chan *Client),
 		unregister:    make(chan *Client),
-		userClients:   make(map[string]*Client),
+		userClients:   make(map[string]map[string]*Client),
 		sm:            &sync.RWMutex{},
 		logger:        &message.FileMsgLog{},
 		Authenticator: &util.JWTAuthenticator{},
@@ -49,7 +49,12 @@ func (h *Hub) run() {
 		case client := <-h.register:
 			// 注册client
 			h.sm.RLock()
-			h.userClients[client.uid] = client
+
+			if h.userClients[client.uid] == nil {
+				h.userClients[client.uid] = make(map[string]*Client)
+			}
+			h.userClients[client.uid][client.uuid] = client
+
 			h.sm.RUnlock()
 		case client := <-h.unregister:
 			// 注销client

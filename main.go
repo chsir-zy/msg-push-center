@@ -1,6 +1,8 @@
 package main
 
-import "chsir-zy/msg-push-center/impl"
+import (
+	"chsir-zy/msg-push-center/impl"
+)
 
 func main() {
 	// hub := impl.NewHub()

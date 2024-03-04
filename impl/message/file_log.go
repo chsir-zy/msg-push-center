@@ -1,10 +1,10 @@
 package message
 
 import (
+	"bufio"
 	"chsir-zy/msg-push-center/impl/util"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -29,10 +29,7 @@ func (f *FileMsgLog) Log(msg Msg) error {
 	}
 	day := time.Now().Day()
 	dayStr := strconv.Itoa(day)
-	fmt.Println("day:", day)
 	filename := "./log/" + floder + "/" + dayStr + ".log"
-
-	fmt.Println("filename:", filename)
 
 	filelog.Datetime = time.Now().Format(time.RFC3339)
 	filelog.Uid = msg.Uid
@@ -43,10 +40,15 @@ func (f *FileMsgLog) Log(msg Msg) error {
 		return err
 	}
 
-	os.WriteFile(filename, jsonMsg, os.ModePerm)
+	// os.WriteFile(filename, jsonMsg, os.ModePerm)
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
+	writer := bufio.NewWriter(file)
+	writer.WriteString(string(jsonMsg) + "\n")
+	writer.Flush()
 
 	return nil
 }

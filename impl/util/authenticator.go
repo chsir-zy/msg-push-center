@@ -40,7 +40,6 @@ func (jwtauth *JWTAuthenticator) Authenticate(c *gin.Context) (string, error) {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		fmt.Println("claims", claims)
 		return claims["uid"].(string), nil
 	} else {
 		return "", err
@@ -50,9 +49,8 @@ func (jwtauth *JWTAuthenticator) Authenticate(c *gin.Context) (string, error) {
 // 生成token
 func GenToken() string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid": "1",
+		"uid": "20942",
 	})
-	fmt.Println("jwt key :", config.JWT_KEY)
 	tokenStr, err := token.SignedString([]byte(config.JWT_KEY))
 
 	if err != nil {
