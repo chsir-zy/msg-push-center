@@ -38,6 +38,11 @@ func (c *Client) readPump(hub *Hub) {
 		close(c.send)
 	}()
 
+	go func() {
+		// time.Sleep(30 * time.Second)
+		// c.conn.Close()
+	}()
+
 	for {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil || websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err) {
@@ -47,7 +52,8 @@ func (c *Client) readPump(hub *Hub) {
 			return
 		}
 
-		// fmt.Println(string(p))
+		// 返回心跳消息
+		c.conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 	}
 
 }
@@ -112,7 +118,7 @@ func ServeWs(c *gin.Context, hub *Hub) {
 	}
 
 	// 告诉客户端连接成功
-	conn.WriteMessage(websocket.TextMessage, []byte("connection success"))
+	conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 
 	// 创建一个和浏览器连接的客户端
 	uuid := uuid.New()

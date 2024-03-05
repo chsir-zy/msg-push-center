@@ -1,153 +1,107 @@
-var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIxIn0.3shGQJ4Um1To5hFQ7vQTVLpRKWGxZWDKLX29j53rH1A"
-// const socket = new WebSocket("ws://localhost:8080/ws/connect?token=" + token);
-// socket.addEventListener("message", function (event) {
-//     if (event.data != 'connection success') {
-//         layer.open({
-//             type: 1
-//             ,title: '新消息提醒' 
-//             ,offset: 'rb' 
-//             ,id: 'layerDemorb' //防止重复弹出
-//             ,content: '<div style="padding: 20px 20px;font-size:14px;">'+ event.data +'</div>'
-//             ,btn: '关闭'
-//             ,btnAlign: 'rb' //按钮居中
-//             ,shade: 0 //不显示遮罩
-//             ,zIndex: layer.zIndex
-//             ,success: function(layero, index){
-//                 layer.setTop(layero);
-//             }
-//             ,yes: function(){
-//               layer.closeAll();
-//             }
-//         });
-//     }
-    
-// });
-
-// WebSocket
-var ws = null;
-// WebSocket连接地址
-var ws_url = "ws://localhost:8080/ws/connect?token=" + token
-
-// 创建WebSocket
-ws_create(ws_url);
-
-// 创建WebSocket
-function ws_create(url) {
-     try{
-        // 判断是否支持 WebSocket
-        if('WebSocket' in window){
-            // 连接WebSocket
-            ws = new WebSocket(url);
-            // 初始化WebSocket事件(WebSocket对象, WebSocket连接地址)
-            ws_event(ws, url);
-        }
-    }catch(e){
-        // 重新连接WebSocket
-        ws_recontent(url);
+class SocketConnect {
+    constructor(url) {
+      this.url = url //WebSocket连接地址
+      this.ws = null //WebSocket连接对象
+      this.heartInterval = 10000 //心跳间隔时间
+      this.heartTimeout = 5000 //心跳超时时间
+      this.lockReconnect = false //是否禁止重连
+      this.heartTimer = null //心跳定时器
+      this.serverTimer = null //服务器超时定时器
+      this.reconnectCount = 0 //重连次数
+      this.maxReconnectCount = 5 //最大重连次数
+  
+      this.connect()
     }
-}
-
-// WebSocket 事件创建
-function ws_event(ws, url) {
-    ws.onopen = function (event) {
-        // 心跳检测重置
-        ws_heartCheck_func();
-        console.log("WebSocket已连接");
-    };
-
-    ws.onclose = function (event) {
-        // 重新连接WebSocket
-        // ws_recontent(url);
-        console.log("WebSocket连接已关闭");
-    };
-
-    ws.onerror = function (event) {
-        console.log("WebSocket错误：", event);
-    };
-
-    ws.onmessage = function (event) {
-        console.log(event.data)
-        console.log(layer)
-        // 只要有数据，那就说明连接正常
-        // 处理数据，只处理非心跳检测的数据
-        if (event.data != 'check') {
-          // 处理数据
-            if (event.data != 'connection success') {
-                layer.open({
-                    type: 1
-                    ,title: '新消息提醒' 
-                    ,offset: 'rb' 
-                    // ,id: 'layerDemorb' //防止重复弹出
-                    ,skin: 'layui-layer-demo'
-                    ,content: '<div style="padding: 20px 20px;font-size:14px;">'+ event.data +'</div>'
-                    ,btn: '关闭'
-                    ,btnAlign: 'rb' //按钮居中
-                    ,shade: 0 //不显示遮罩
-                    // ,zIndex: layer.zIndex
-                    ,success: function(layero, index){
-                        layer.setTop(layero);
-                    }
-                    ,yes: function(){
-                      layer.closeAll();
-                    }
-                });
-
-                layer.alert(event.data);
-
-                layer.msg(event.data)
-            }
+  
+    //WebSocket连接
+    connect() {
+      this.ws = new WebSocket(this.url)
+  
+      this.ws.onopen = () => {
+        this.reconnectCount = 0 // 重置重连次数
+        this.start() // 开启心跳
+      }
+  
+      this.ws.onclose = (event) => {
+        console.log('WebSocket closed:', event)
+        this.reconnect()
+      }
+  
+      this.ws.onerror = (error) => {
+        console.log('WebSocket error:', error)
+        this.reconnect()
+      }
+  
+      this.ws.onmessage = (event) => {
+        //收到心跳信息则重置心跳，收到其他信息则触发回调
+        if (event.data == 'pong') {
+          this.start()
+        } else {
+          var thisDialog = layer.open({
+              type: 1
+              ,title: '新消息提醒' 
+              ,offset: 'rb' 
+              // ,id: 'layerDemorb' //防止重复弹出
+              ,skin: 'layui-layer-demo'
+              ,content: '<div style="padding: 20px 20px;font-size:14px;">'+ event.data +'</div>'
+              ,btn: '关闭'
+              ,btnAlign: 'rb' //按钮居中
+              ,shade: 0 //不显示遮罩
+              // ,zIndex: layer.zIndex
+              ,success: function(layero, index){
+                  layer.setTop(layero);
+              }
+              ,yes: function(){
+                // layer.closeAll();
+                layer.close(thisDialog);
+              }
+          });
         }
-    };
-}
-
-// 重新连接websocker(WebSocket连接地址)
-function ws_recontent(url) {
-    // 延迟避免请求过多
-    // setTimeout(function () {
-    //     ws_create(url);
-    // }, 2000);
-
-    ws_create(url);
-}
-
-// 监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，这样服务端会抛异常。
-window.onbeforeunload = function() {
-    console.log("window.onbeforeunload")
-    ws.close();
-} 
-
-// WebSocket心跳检测
-var ws_heartCheck = {
-    timeout: 5000,          // 5秒一次心跳
-    timeoutObj: null,       // 执行心跳的定时器
-    serverTimeoutObj: null, // 服务器超时定时器
-    reset: function(){      // 重置方法
-        clearTimeout(this.timeoutObj);
-        clearTimeout(this.serverTimeoutObj);
-        return this;
-    },
-    start: function(){      // 启动方法
-        var self = this;
-        this.timeoutObj = setTimeout(function(){
-            // 这里发送一个心跳信息，后端收到后，返回一个消息，在onmessage拿到返回的心跳（信息）就说明连接正常
-            ws.send("check");
-            // 如果超过一定时间还没重置，说明后端主动断开了
-            // self.serverTimeoutObj = setTimeout(function(){
-            //     // 如果onclose会执行reconnect，我们执行ws.close()就行了.如果直接执行reconnect 会触发onclose导致重连两次
-            //     ws.close();
-            // }, self.timeout);
-        }, this.timeout);
-
-        
+      }
     }
-}
-
-var heartBeat = {
-    type: "ping",
-    timestamp: new Date().getTime()
-}
-function ws_heartCheck_func(){
-    setInterval(function(){
-        ws.send(JSON.stringify(heartBeat));
-    }, 5000)
-}
+  
+    //发送信息
+    send(message) {
+      this.ws.send(message)
+      return this
+    }
+  
+    //开启心跳
+    start() {
+      this.reset()
+  
+      this.heartTimer = setTimeout(() => {
+        this.send("ping")
+  
+        //5秒钟还没有返回心跳信息，则认为连接断开，关闭WebSocket并重连
+        this.serverTimer = setTimeout(() => {
+          this.ws.close()
+        }, this.heartTimeout)
+      }, this.heartInterval)
+    }
+  
+    //重置心跳定时器/服务超时定时器
+    reset() {
+      this.heartTimer && clearTimeout(this.heartTimer)
+  
+      this.serverTimer && clearTimeout(this.serverTimer)
+    }
+  
+    //重连
+    reconnect() {
+      // 设置lockReconnect变量避免重复连接
+      if (this.lockReconnect || this.reconnectCount >= this.maxReconnectCount) return
+      this.lockReconnect = true
+  
+      this.reconnectCount++ //重连次数+1
+  
+      setTimeout(() => {
+        this.connect()
+        this.lockReconnect = false
+      }, 1000 * this.reconnectCount) //重连次数越多，延时越久
+    }
+  }
+  
+var url = "ws://localhost:8080";
+const ws = new SocketConnect(url)
+  
