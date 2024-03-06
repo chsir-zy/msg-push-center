@@ -13,11 +13,11 @@ import (
 )
 
 const CLIENT_BUFFER_SIZE = 16 // 客户端发送消息的缓存大小
-const WRITER_TIMEOUT = 10     //websocket 写入的超时时间
+const WRITER_TIMEOUT = 10     // websocket 写入的超时时间
+const PINT_WRITER_TIMEOUT = 3 // 返回ping的超时时间
 
 /*
- *	处理客户端(可以认为是浏览器)的连接信息
- *
+*	处理客户端(可以认为是浏览器)的连接信息
  */
 type Client struct {
 	hub      *Hub
@@ -38,11 +38,6 @@ func (c *Client) readPump(hub *Hub) {
 		close(c.send)
 	}()
 
-	go func() {
-		// time.Sleep(30 * time.Second)
-		// c.conn.Close()
-	}()
-
 	for {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil || websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err) {
@@ -53,6 +48,7 @@ func (c *Client) readPump(hub *Hub) {
 		}
 
 		// 返回心跳消息
+		c.conn.SetWriteDeadline(time.Now().Add(time.Second * PINT_WRITER_TIMEOUT))
 		c.conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 	}
 
@@ -68,22 +64,28 @@ func (c *Client) writerPump() {
 	for {
 		// 当send里面有数据时，就往客户端发送  没有消息的话会阻塞在这里
 		msgLog, ok := <-c.send
-
-		// 设置超时时间
-		c.conn.SetWriteDeadline(time.Now().Add(time.Second * WRITER_TIMEOUT))
-
 		if !ok { // 如果send通道关闭了 例如在注销client的时候会关闭通道
 			return
 		}
 
-		err := c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Message))
+		// 设置超时时间
+		err := c.conn.SetWriteDeadline(time.Now().Add(time.Second * WRITER_TIMEOUT))
 		if err != nil {
 			log.Println("writer", err)
 			return
 		}
 
-		c.hub.logger.Log(msgLog)
+		err = c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Message))
+		if err != nil {
+			log.Println("writer1", err)
+			return
+		}
 
+		err = c.hub.logger.Log(msgLog)
+		if err != nil {
+			log.Println("writer2", err)
+			return
+		}
 	}
 
 }
@@ -138,7 +140,6 @@ func ServeWs(c *gin.Context, hub *Hub) {
  */
 func Send(c *gin.Context, hub *Hub) {
 	// 业务中心需要传uid  hub才能知道往哪个client推送消息
-	// uid := c.PostForm("uid")
 	uid, err := hub.Authenticator.Authenticate(c)
 
 	if err != nil {
@@ -148,7 +149,6 @@ func Send(c *gin.Context, hub *Hub) {
 	}
 
 	if uid == "" {
-		// c.Writer.WriteHeader(http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"msg": "uid is need",
 		})
@@ -168,7 +168,6 @@ func Send(c *gin.Context, hub *Hub) {
 	}
 
 	sendMsg := c.PostForm("msg")
-
 	msgLog := message.Msg{
 		Uid:     uid,
 		Message: sendMsg,

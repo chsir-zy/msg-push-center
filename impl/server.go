@@ -15,7 +15,7 @@ func NewServer() {
 	config.JWT_KEY = config.CONFIG.Jwt.Key
 
 	hub := NewHub()
-	// gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.ReleaseMode)
 	engine := gin.Default()
 	engine = initRouter(hub, engine)
 
