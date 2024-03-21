@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -42,13 +41,17 @@ func (c *Client) readPump(hub *Hub) {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil || websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err) {
 			c.isClosed = true
+
+			hub.sm.Lock()
 			delete(hub.userClients[c.uid], c.uuid)
+			hub.sm.Unlock()
+
 			log.Println("read:::::", err)
 			return
 		}
 
 		// 返回心跳消息
-		c.conn.SetWriteDeadline(time.Now().Add(time.Second * PINT_WRITER_TIMEOUT))
+		// c.conn.SetWriteDeadline(time.Now().Add(time.Second * PINT_WRITER_TIMEOUT))
 		c.conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 	}
 
@@ -69,13 +72,13 @@ func (c *Client) writerPump() {
 		}
 
 		// 设置超时时间
-		err := c.conn.SetWriteDeadline(time.Now().Add(time.Second * WRITER_TIMEOUT))
-		if err != nil {
-			log.Println("writer", err)
-			return
-		}
+		// err := c.conn.SetWriteDeadline(time.Now().Add(time.Second * WRITER_TIMEOUT))
+		// if err != nil {
+		// 	log.Println("writer", err)
+		// 	return
+		// }
 
-		err = c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Message))
+		err := c.conn.WriteMessage(websocket.TextMessage, []byte(msgLog.Message))
 		if err != nil {
 			log.Println("writer1", err)
 			return

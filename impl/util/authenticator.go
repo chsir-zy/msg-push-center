@@ -47,9 +47,13 @@ func (jwtauth *JWTAuthenticator) Authenticate(c *gin.Context) (string, error) {
 }
 
 // 生成token
-func GenToken() string {
+func GenToken(ctx *gin.Context) string {
+	uid := "20942"
+	if u, ok := ctx.GetQuery("uid"); ok {
+		uid = u
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid": "20942",
+		"uid": uid,
 	})
 	tokenStr, err := token.SignedString([]byte(config.JWT_KEY))
 

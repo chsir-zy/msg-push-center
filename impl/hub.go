@@ -3,6 +3,7 @@ package impl
 import (
 	"chsir-zy/msg-push-center/impl/message"
 	"chsir-zy/msg-push-center/impl/util"
+	"sort"
 	"sync"
 )
 
@@ -64,4 +65,24 @@ func (h *Hub) run() {
 			h.sm.Unlock()
 		}
 	}
+}
+
+// 获取登录的用户
+func GetOnlineUid(hub Hub) []string {
+	var uids []string
+	for uid := range hub.userClients {
+		uids = append(uids, uid)
+	}
+
+	sort.Strings(uids)
+
+	staffMap := util.ReadStaff()
+	var uname []string
+	for _, v := range uids {
+		if _, ok := staffMap[v]; ok {
+			uname = append(uname, staffMap[v])
+		}
+
+	}
+	return uname
 }
