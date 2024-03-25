@@ -55,6 +55,7 @@ func GenToken(ctx *gin.Context) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": uid,
 	})
+
 	tokenStr, err := token.SignedString([]byte(config.JWT_KEY))
 
 	if err != nil {
@@ -62,4 +63,13 @@ func GenToken(ctx *gin.Context) string {
 	}
 
 	return tokenStr
+}
+
+func Test(ctx *gin.Context) string {
+	var jwt JWTAuthenticator
+	c, err := jwt.Authenticate(ctx)
+	if err != nil {
+		return err.Error()
+	}
+	return c
 }

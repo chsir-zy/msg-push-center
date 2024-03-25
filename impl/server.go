@@ -63,7 +63,7 @@ func initRouter(hub *Hub, router *gin.Engine) *gin.Engine {
 	}
 
 	router.LoadHTMLGlob("templates/*")
-	router.GET("/test", func(ctx *gin.Context) {
+	router.GET("/tplTest", func(ctx *gin.Context) {
 		ctx.HTML(http.StatusOK, "test.tmpl", gin.H{
 			"title": "test",
 		})

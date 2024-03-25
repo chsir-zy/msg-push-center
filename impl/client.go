@@ -43,7 +43,10 @@ func (c *Client) readPump(hub *Hub) {
 			c.isClosed = true
 
 			hub.sm.Lock()
-			delete(hub.userClients[c.uid], c.uuid)
+			delete(hub.userClients[c.uid], c.uuid) // 多点登录 删除uuid
+			if len(hub.userClients[c.uid]) == 0 {
+				delete(hub.userClients, c.uid)
+			}
 			hub.sm.Unlock()
 
 			log.Println("read:::::", err)
